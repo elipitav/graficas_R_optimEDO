@@ -500,8 +500,6 @@ flag <- taboas_combinadas[["problemas_solvers"]]
   
 if(flag){
   titulo <- "# Proporción de resultados por problemas e solvers"
-  subtitulo1 <- "## Táboa por problemas e solvers:"
-  subtitulo2 <- "## Pie graph por problemas e solvers:"
 }
 
 ```
@@ -509,8 +507,6 @@ if(flag){
 \newpage
 
 `r titulo`
-
-`r subtitulo1`
 
 ```{r results='asis', echo=FALSE, message = FALSE, warning = FALSE}
 
@@ -535,38 +531,12 @@ if(flag){
   print(knitr::kable(resultados[ord,],row.names = FALSE,caption = titulo,digits=3))
 }
 
-```
-
-`r subtitulo2`
-
-```{r fig.width=2, fig.height=2, fig.show="hold", out.width="33%"}
-par(mar = c(20, 20, 20, 20))
-  
-# Queixos por problemas e solvers combinados
-if(flag){
-  for (i in 1:length(factor1)){
-    for (j in 1:length(factor2)){
-      dat=datos[(datos[,f1]==factor1[i] & datos[,f2]==factor2[j]),]
-      porcentajes <- unlist(res(paste(factor1[i],factor2[j],sep="-"),dat))
-      porcentajes <- porcentajes[3:5]
-      porcentajes <- c(porcentajes,1-sum(as.numeric(porcentajes)))
-      titulo = paste(factor1[i],factor2[j],sep="-")
-      grafico <- pie_graph(tipo_resultado, porcentajes, titulo, colors)
-      plot(grafico)
-    }
-  }
-}
-
 titulo <- ""
-subtitulo1 <- ""
-subtitulo2 <- ""
 
 flag <- taboas_combinadas[["problemas_metodos"]]
   
 if(flag){
   titulo <- "# Proporción de resultados por problemas e métodos"
-  subtitulo1 <- "## Táboa por problemas e métodos:"
-  subtitulo2 <- "## Pie graph por problemas e métodos:"
 }
 
 ```
@@ -574,8 +544,6 @@ if(flag){
 \newpage
 
 `r titulo`
-
-`r subtitulo1`
 
 ```{r results='asis', echo=FALSE, message = FALSE, warning = FALSE}
 # Taboa por problemas e metodos
@@ -598,38 +566,12 @@ if(flag){
   print(knitr::kable(resultados[ord,],row.names = FALSE,caption = titulo,digits=3))
 }
 
-```
-
-`r subtitulo2`
-
-```{r fig.width=2, fig.height=2, fig.show="hold", out.width="33%"}
-par(mar = c(20, 20, 20, 20))
-  
-# Queixos por problemas e metodos combinados
-if(flag){
-  for (i in 1:length(factor1)){
-    for (j in 1:length(factor2)){
-      dat=datos[(datos[,f1]==factor1[i] & datos[,f2]==factor2[j]),]
-      porcentajes <- unlist(res(paste(factor1[i],factor2[j],sep="-"),dat))
-      porcentajes <- porcentajes[3:5]
-      porcentajes <- c(porcentajes,1-sum(as.numeric(porcentajes)))
-      titulo = paste(factor1[i],factor2[j],sep="-")
-      grafico <- pie_graph(tipo_resultado, porcentajes, titulo, colors)
-      plot(grafico)
-    }
-  }
-}
-
 titulo <- ""
-subtitulo1 <- ""
-subtitulo2 <- ""
 
 flag <- taboas_combinadas[["problemas_modos"]]
   
 if(flag){
   titulo <- "# Proporción de resultados por problemas e modos"
-  subtitulo1 <- "## Táboa por problemas e modos:"
-  subtitulo2 <- "## Pie graph por problemas e modos:"
 }
 
 ```
@@ -637,8 +579,6 @@ if(flag){
 \newpage
 
 `r titulo`
-
-`r subtitulo1`
 
 ```{r results='asis', echo=FALSE, message = FALSE, warning = FALSE}
 # Taboa por problemas e modos
@@ -661,38 +601,12 @@ if(flag){
   print(knitr::kable(resultados[ord,],row.names = FALSE,caption = titulo,digits=3))
 }
 
-```
-
-`r subtitulo2`
-
-```{r fig.width=2, fig.height=2, fig.show="hold", out.width="33%"}
-par(mar = c(20, 20, 20, 20))
-  
-# Queixos por problemas e modos combinados
-if(flag){
-  for (i in 1:length(factor1)){
-    for (j in 1:length(factor2)){
-      dat=datos[(datos[,f1]==factor1[i] & datos[,f2]==factor2[j]),]
-      porcentajes <- unlist(res(paste(factor1[i],factor2[j],sep="-"),dat))
-      porcentajes <- porcentajes[3:5]
-      porcentajes <- c(porcentajes,1-sum(as.numeric(porcentajes)))
-      titulo = paste(factor1[i],factor2[j],sep="-")
-      grafico <- pie_graph(tipo_resultado, porcentajes, titulo, colors)
-      plot(grafico)
-    }
-  }
-}
-
 titulo <- ""
-subtitulo1 <- ""
-subtitulo2 <- ""
 
 flag <- taboas_combinadas[["solvers_metodos"]]
   
 if(flag){
   titulo <- "# Proporción de resultados por solvers e métodos"
-  subtitulo1 <- "## Táboa por solvers e métodos:"
-  subtitulo2 <- "## Pie graph por solvers e métodos:"
 }
 
 ```
@@ -700,8 +614,6 @@ if(flag){
 \newpage
 
 `r titulo`
-
-`r subtitulo1`
 
 ```{r results='asis', echo=FALSE, message = FALSE, warning = FALSE}
 
@@ -725,38 +637,12 @@ if(flag){
   print(knitr::kable(resultados[ord,],row.names = FALSE,caption = titulo,digits=3))
 }
 
-```
-
-`r subtitulo2`
-
-```{r fig.width=2, fig.height=2, fig.show="hold", out.width="33%"}
-par(mar = c(20, 20, 20, 20))
-  
-# Queixos por solvers e metodos combinados
-if(flag){
-  for (i in 1:length(factor1)){
-    for (j in 1:length(factor2)){
-      dat=datos[(datos[,f1]==factor1[i] & datos[,f2]==factor2[j]),]
-      porcentajes <- unlist(res(paste(factor1[i],factor2[j],sep="-"),dat))
-      porcentajes <- porcentajes[3:5]
-      porcentajes <- c(porcentajes,1-sum(as.numeric(porcentajes)))
-      titulo = paste(factor1[i],factor2[j],sep="-")
-      grafico <- pie_graph(tipo_resultado, porcentajes, titulo, colors)
-      plot(grafico)
-    }
-  }
-}
-
 titulo <- ""
-subtitulo1 <- ""
-subtitulo2 <- ""
 
 flag <- taboas_combinadas[["solvers_modos"]]
   
 if(flag){
   titulo <- "# Proporción de resultados por solvers e modos"
-  subtitulo1 <- "## Táboa por solvers e modos:"
-  subtitulo2 <- "## Pie graph por solvers e modos:"
 }
 
 ```
@@ -765,10 +651,7 @@ if(flag){
 
 `r titulo`
 
-`r subtitulo1`
-
 ```{r results='asis', echo=FALSE, message = FALSE, warning = FALSE}
-
 
 # Taboa por solvers e modos
 if(flag){
@@ -790,38 +673,12 @@ if(flag){
   print(knitr::kable(resultados[ord,],row.names = FALSE,caption = titulo,digits=3))
 }
 
-```
-
-`r subtitulo2`
-
-```{r fig.width=2, fig.height=2, fig.show="hold", out.width="33%"}
-par(mar = c(20, 20, 20, 20))
-  
-# Queixos por solvers e modos combinados
-if(flag){
-  for (i in 1:length(factor1)){
-    for (j in 1:length(factor2)){
-      dat=datos[(datos[,f1]==factor1[i] & datos[,f2]==factor2[j]),]
-      porcentajes <- unlist(res(paste(factor1[i],factor2[j],sep="-"),dat))
-      porcentajes <- porcentajes[3:5]
-      porcentajes <- c(porcentajes,1-sum(as.numeric(porcentajes)))
-      titulo = paste(factor1[i],factor2[j],sep="-")
-      grafico <- pie_graph(tipo_resultado, porcentajes, titulo, colors)
-      plot(grafico)
-    }
-  }
-}
-
 titulo <- ""
-subtitulo1 <- ""
-subtitulo2 <- ""
 
 flag <- taboas_combinadas[["metodos_modos"]]
   
 if(flag){
   titulo <- "# Proporción de resultados por métodos e modos"
-  subtitulo1 <- "## Táboa por métodos e modos:"
-  subtitulo2 <- "## Pie graph por métodos e modos:"
 }
 
 ```
@@ -829,8 +686,6 @@ if(flag){
 \newpage
 
 `r titulo`
-
-`r subtitulo1`
 
 ```{r results='asis', echo=FALSE, message = FALSE, warning = FALSE}
 
@@ -854,31 +709,7 @@ if(flag){
   print(knitr::kable(resultados[ord,],row.names = FALSE,caption = titulo,digits=3))
 }
 
-```
-
-`r subtitulo2`
-
-```{r fig.width=2, fig.height=2, fig.show="hold", out.width="33%"}
-par(mar = c(20, 20, 20, 20))
-  
-# Queixos por métodos e modos combinados
-if(flag){
-  for (i in 1:length(factor1)){
-    for (j in 1:length(factor2)){
-      dat=datos[(datos[,f1]==factor1[i] & datos[,f2]==factor2[j]),]
-      porcentajes <- unlist(res(paste(factor1[i],factor2[j],sep="-"),dat))
-      porcentajes <- porcentajes[3:5]
-      porcentajes <- c(porcentajes,1-sum(as.numeric(porcentajes)))
-      titulo = paste(factor1[i],factor2[j],sep="-")
-      grafico <- pie_graph(tipo_resultado, porcentajes, titulo, colors)
-      plot(grafico)
-    }
-  }
-}
-
 titulo <- ""
-subtitulo1 <- ""
-subtitulo2 <- ""
 
 flag1 <- taboas_mellores_tempos[["solvers"]]
 flag2 <- taboas_mellores_tempos[["globais"]]

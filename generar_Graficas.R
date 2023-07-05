@@ -9,8 +9,10 @@ generar_Graficas <- function(datos, globais, locais, problemas){
     # Debuxamos a gráfica distancia-tempo para solvers globais e incluímola no arquivo de saída
     if(tipo=="Tempo"){
       my_plot <- ggplot(dat,aes(x=erro_ps2,y=time,col=SOLVER,shape=SOLVER))
+      my_plot <- my_plot + scale_y_continuous(limits = c(0, max(dat$time)))
     }
     else{
+      dat$NRMSE <- log(1+dat$NRMSE)
       my_plot <- ggplot(dat,aes(x=erro_ps2,y=NRMSE,col=SOLVER,shape=SOLVER))
     }
     my_plot <- my_plot + geom_point(size=4)
