@@ -1,0 +1,979 @@
+---
+title: "Representación datos OptimEDO"
+output:
+  pdf_document:
+    fig_crop: no
+    toc: yes
+    latex_engine: pdflatex
+---
+
+\[TOC\]
+
+\newpage
+
+```{r include=FALSE, echo=FALSE, message = FALSE, warning = FALSE}
+knitr::opts_chunk$set(echo = FALSE, fig.width = 10, fig.height = 6, fig.align = 'center')
+```
+Columnas: 
+
+-solved_S (solved by Solver): Proporción de veces que o solver devolveu solved
+
+-found_ref: proporción de veces que o resultado estaba dentro do marxe das nosas métricas(<0.1 norma2 erro relativo) con respecto aos valores dos parámetros.
+
+-near_ref: propoción de veces que o resultado non estaba dentro do marxe pero non pasaba moito (>0.1 <0.5,norma2 erro relativo)
+
+-alt: propoción de veces que o resultado non estaba dentro do marxe de near_ref pero o NRMSE_y era bo
+   (<0.0001) ( posible problema identificabilidade)
+
+-Bt_found_ref: mellor tempo dos found_ref
+
+-Mt_found_ref:tempo medio dos found_ref
+
+
+```{r results='asis', echo=FALSE, message = FALSE, warning = FALSE}
+
+cat("\\newpage")
+
+library(ggplot2)
+library(plotly)
+library(readxl)
+library(dplyr)
+library(htmlwidgets)
+library(htmltools)
+source("transformar_TextoPlano.R")
+source("generar_Graficas.R")
+source("configuracion_VisualizacionDatos.R")
+
+options(knitr.kable.NA = "**")
+
+# Nome do arquivo excel
+filename<-"resultados_totais.xlsx"
+
+# Xeramos o excel se é nesario
+xerarExcel(filename,TRUE)
+
+# Obtemos o diccionario para saber que representacions xerar
+taboas <- taboas()
+taboas_combinadas <- taboas_combinadas()
+taboas_mellores_tempos <- taboas_mellores_tempos()
+boxplots <- boxplots()
+graficas_problemas <- graficas_problemas()
+
+minimo=function(dat){
+  if (!length(dat)) {
+    return (NA)
+  }
+  else {
+    return(min(dat))
+  }
+}
+
+res=function(concepto,dat) {
+  limite_inf_preto=0.1
+  limite_preto=0.5
+  limite_NRMSE=0.0001
+  
+  list(concepto,mean(dat$solve_result=="solved"),
+          mean(dat$resolto=="si"),mean(dat$erro_ps2>limite_inf_preto & dat$erro_ps2<limite_preto),
+          mean(dat$NRMSE<limite_NRMSE & dat$erro_ps2>limite_preto),
+          minimo(dat$time[dat$resolto=="si"]))
+}
+
+res2=function(concepto,dat) {
+  # como res pero co tempo medio en vez de o mellor tempo na última columna
+  limite_inf_preto=0.1
+  limite_preto=0.5
+  limite_NRMSE=0.0001
+  
+  list(concepto,mean(dat$solve_result=="solved"),
+          mean(dat$resolto=="si"),mean(dat$erro_ps2>limite_inf_preto & dat$erro_ps2<limite_preto),
+          mean(dat$NRMSE<limite_NRMSE & dat$erro_ps2>limite_preto),
+          mean(dat$time[dat$resolto=="si"]))
+}
+
+# Obtemos os distintos parametros
+parametros <- read_excel(filename, sheet = "Parametros")
+problemas=parametros$problemas[!is.na(parametros$problemas)]
+solvers=parametros$solvers[!is.na(parametros$solvers)]
+metodos=parametros$metodos[!is.na(parametros$metodos)]
+modes=parametros$modes[!is.na(parametros$modes)]
+PEN=parametros$PEN[!is.na(parametros$PEN)]
+tol=parametros$tol[!is.na(parametros$tol)]
+N=parametros$N[!is.na(parametros$N)]
+
+# Combinamos todas as follas nun data frame
+datos = data.frame()
+for (folla in problemas) {
+  datos_folla <- read_excel(filename, sheet = folla) %>% mutate(problema = folla)
+  datos_folla <- datos_folla %>% select(-matches("^p\\d+$"))
+  datos <- rbind(datos, datos_folla)
+}
+
+### TÁBOAS ###
+
+# Xeramos a plantilla para o data frame que se usará nas táboas
+resultados = data.frame(tipo=character(),solved_S=numeric(), found_ref=numeric(), 
+                          near_ref=numeric(),Alt=numeric(),BTime_F=numeric())
+# Elementos necesarios para xerar as pie graphs
+titulo <- ""
+subtitulo1 <- ""
+subtitulo2 <- ""
+tipo_resultado <- c("found_ref", "near_ref", "Alt", "N/A")
+colors <- c("limegreen", "lightskyblue", "sandybrown", "indianred3")
+colors <- setNames(colors, tipo_resultado)
+
+pie_graph <- function(tipo_resultado, porcentajes, titulo, colors){
+    dat <- data.frame(
+      Resultado = tipo_resultado,
+      valor = as.numeric(porcentajes)
+    )
+    grafico <- ggplot(dat, aes(x = "", y = valor, fill = Resultado)) +
+    geom_bar(stat = "identity") +
+    coord_polar(theta = "y") +
+    labs(title = titulo) +
+    scale_fill_manual(values = colors) +
+    theme_void() +
+    theme(plot.title = element_text(size = 12, hjust = 0.5), 
+          legend.text = element_text(size = 6),
+          legend.title = element_text(size = 8))
+}
+
+flag <- taboas[["problemas"]]
+  
+if(flag){
+  titulo <- "# Proporción de resultados por problemas"
+  subtitulo1 <- "## Táboa por problemas:"
+  subtitulo2 <- "## Pie graph por problemas:"
+}
+
+```
+
+`r titulo`
+
+`r subtitulo1`
+
+```{r results='asis', echo=FALSE, message = FALSE, warning = FALSE}
+# Taboa por problemas
+if(flag){
+  for (i in 1:length(problemas)){
+    dat=datos[datos$problema==problemas[i],]
+    resultados[nrow(resultados)+1,]=res(problemas[i],dat)
+  }
+  ord=order(resultados$found_ref,decreasing = TRUE)
+  print(knitr::kable(resultados[ord,],row.names = FALSE,caption = "Problemas",digits=3))
+}
+```
+
+`r subtitulo2`
+
+```{r fig.width=2, fig.height=2, fig.show="hold", out.width="33%"}
+
+par(mar = c(20, 20, 20, 20))
+  
+# Queixos por problemas
+if(flag){
+  for (i in 1:length(problemas)){
+    dat=datos[datos$problema==problemas[i],]
+    porcentajes <- unlist(res(problemas[i],dat))
+    porcentajes <- porcentajes[3:5]
+    porcentajes <- c(porcentajes,1-sum(as.numeric(porcentajes)))
+    grafico <- pie_graph(tipo_resultado, porcentajes, problemas[i], colors)
+    plot(grafico)
+  }
+}
+
+titulo <- ""
+subtitulo1 <- ""
+subtitulo2 <- ""
+
+flag <- taboas[["solvers"]]
+  
+if(flag){
+  titulo <- "# Proporción de resultados por solvers"
+  subtitulo1 <- "## Táboa por solvers:"
+  subtitulo2 <- "## Pie graph por solvers:"
+}
+
+```
+
+\newpage
+
+`r titulo`
+
+`r subtitulo1`
+
+```{r results='asis', echo=FALSE, message = FALSE, warning = FALSE}
+# Taboa por solvers
+if(flag){
+  resultados = resultados[0, ]
+  for (i in 1:length(solvers)){
+    dat=datos[datos$SOLVER==solvers[i],]
+    resultados[nrow(resultados)+1,]=res(solvers[i],dat)
+  }
+  ord=order(resultados$found_ref,decreasing = TRUE)
+  print(knitr::kable(resultados[ord,],row.names = FALSE,caption = "Solvers",digits=3))
+}
+
+```
+
+`r subtitulo2`
+
+```{r fig.width=2, fig.height=2, fig.show="hold", out.width="33%"}
+par(mar = c(20, 20, 20, 20))
+  
+# Queixos por problemas
+if(flag){
+  for (i in 1:length(solvers)){
+    dat=datos[datos$SOLVER==solvers[i],]
+    porcentajes <- unlist(res(solvers[i],dat))
+    porcentajes <- porcentajes[3:5]
+    porcentajes <- c(porcentajes,1-sum(as.numeric(porcentajes)))
+    grafico <- pie_graph(tipo_resultado, porcentajes, solvers[i], colors)
+    plot(grafico)
+  }
+}
+
+titulo <- ""
+subtitulo1 <- ""
+subtitulo2 <- ""
+
+flag <- taboas[["metodos"]]
+  
+if(flag){
+  titulo <- "# Proporción de resultados por métodos"
+  subtitulo1 <- "## Táboa por métodos:"
+  subtitulo2 <- "## Pie graph por métodos:"
+}
+
+```
+
+\newpage
+
+`r titulo`
+
+`r subtitulo1`
+
+```{r results='asis', echo=FALSE, message = FALSE, warning = FALSE}
+# Taboa por metodos
+if(flag){
+  resultados = resultados[0, ]
+  for (i in 1:length(metodos)){
+    dat=datos[datos$metodo==metodos[i],]
+    resultados[nrow(resultados)+1,]=res(metodos[i],dat)
+  }
+  ord=order(resultados$found_ref,decreasing = TRUE)
+  print(knitr::kable(resultados[ord,],row.names = FALSE,caption = "Métodos",digits=3))
+}
+
+```
+
+`r subtitulo2`
+
+```{r fig.width=2, fig.height=2, fig.show="hold", out.width="33%"}
+par(mar = c(20, 20, 20, 20))
+
+# Queixos por problemas
+if(flag){
+  for (i in 1:length(metodos)){
+    dat=datos[datos$metodo==metodos[i],]
+    porcentajes <- unlist(res(metodos[i],dat))
+    porcentajes <- porcentajes[3:5]
+    porcentajes <- c(porcentajes,1-sum(as.numeric(porcentajes)))
+    grafico <- pie_graph(tipo_resultado, porcentajes, metodos[i], colors)
+    plot(grafico)
+  }
+}
+
+titulo <- ""
+subtitulo1 <- ""
+subtitulo2 <- ""
+
+flag <- taboas[["modos"]]
+  
+if(flag){
+  titulo <- "# Proporción de resultados por modos"
+  subtitulo1 <- "## Táboa por modos:"
+  subtitulo2 <- "## Pie graph por modos:"
+}
+
+```
+
+\newpage
+
+`r titulo`
+
+`r subtitulo1`
+
+```{r results='asis', echo=FALSE, message = FALSE, warning = FALSE}
+# Taboa por modos
+if(flag){
+  resultados = resultados[0, ]
+  for (i in 1:length(modes)){
+    dat=datos[datos$mode==modes[i],]
+    resultados[nrow(resultados)+1,]=res(paste("mode",modes[i]),dat)
+  }
+  ord=order(resultados$found_ref,decreasing = TRUE)
+  print(knitr::kable(resultados[ord,],row.names = FALSE,caption = "Modes",digits=3))
+}
+
+```
+
+`r subtitulo2`
+
+```{r fig.width=2, fig.height=2, fig.show="hold", out.width="33%"}
+par(mar = c(20, 20, 20, 20))
+  
+# Queixos por problemas
+if(flag){
+  for (i in 1:length(modes)){
+    dat=datos[datos$mode==modes[i],]
+    porcentajes <- unlist(res(modes[i],dat))
+    porcentajes <- porcentajes[3:5]
+    porcentajes <- c(porcentajes,1-sum(as.numeric(porcentajes)))
+    grafico <- pie_graph(tipo_resultado, porcentajes, modes[i], colors)
+    plot(grafico)
+  }
+}
+
+titulo <- ""
+subtitulo1 <- ""
+subtitulo2 <- ""
+
+flag <- taboas[["tolerancias"]]
+  
+if(flag){
+  titulo <- "# Proporción de resultados por tolerancias"
+  subtitulo1 <- "## Táboa por tolerancias:"
+  subtitulo2 <- "## Pie graph por tolerancias:"
+}
+
+```
+
+\newpage
+
+`r titulo`
+
+`r subtitulo1`
+
+```{r results='asis', echo=FALSE, message = FALSE, warning = FALSE}
+
+# Taboa por tolerancias
+if(flag){
+  resultados = data.frame(tipo=character(),solved_S=numeric(), found_ref=numeric(), 
+                          near_ref=numeric(),Alt=numeric(),MTime_F=numeric())
+  for (i in 1:length(tol)){
+    dat=datos[datos$tol==tol[i],]
+    resultados[nrow(resultados)+1,]=res2(tol[i],dat)
+  }
+  ord=order(resultados$found_ref,decreasing = TRUE)
+  print(knitr::kable(resultados[ord,],row.names = FALSE,caption = "Tolerancias",digits=3))
+}
+
+```
+
+`r subtitulo2`
+
+```{r fig.width=2, fig.height=2, fig.show="hold", out.width="33%"}
+par(mar = c(20, 20, 20, 20))
+  
+# Queixos por tolerancias
+if(flag){
+  for (i in 1:length(tol)){
+    dat=datos[datos$tol==tol[i],]
+    porcentajes <- unlist(res(tol[i],dat))
+    porcentajes <- porcentajes[3:5]
+    porcentajes <- c(porcentajes,1-sum(as.numeric(porcentajes)))
+    grafico <- pie_graph(tipo_resultado, porcentajes, tol[i], colors)
+    plot(grafico)
+  }
+}
+
+titulo <- ""
+subtitulo1 <- ""
+subtitulo2 <- ""
+
+flag <- taboas[["penalizacions"]]
+  
+if(flag){
+  titulo <- "# Proporción de resultados por penalizacións"
+  subtitulo1 <- "## Táboa por penalizacións:"
+  subtitulo2 <- "## Pie graph por penalizacións:"
+}
+
+```
+
+\newpage
+
+`r titulo`
+
+`r subtitulo1`
+
+```{r results='asis', echo=FALSE, message = FALSE, warning = FALSE}
+
+# Taboa por penalizacións
+if(flag){
+  resultados = resultados[0, ]
+  for (i in 1:length(PEN)){
+    dat=datos[datos$PEN==PEN[i],]
+    resultados[nrow(resultados)+1,]=res2(PEN[i],dat)
+  }
+  ord=order(resultados$found_ref,decreasing = TRUE)
+  print(knitr::kable(resultados[ord,],row.names = FALSE,caption = "Penalizacións",digits=3))
+}
+
+```
+
+`r subtitulo2`
+
+```{r fig.width=2, fig.height=2, fig.show="hold", out.width="33%"}
+par(mar = c(20, 20, 20, 20))
+  
+# Queixos por penalizacions
+if(flag){
+  for (i in 1:length(PEN)){
+    dat=datos[datos$PEN==PEN[i],]
+    porcentajes <- unlist(res(PEN[i],dat))
+    porcentajes <- porcentajes[3:5]
+    porcentajes <- c(porcentajes,1-sum(as.numeric(porcentajes)))
+    grafico <- pie_graph(tipo_resultado, porcentajes, PEN[i], colors)
+    plot(grafico)
+  }
+}
+
+titulo <- ""
+subtitulo1 <- ""
+subtitulo2 <- ""
+
+flag <- taboas[["mallas"]]
+  
+if(flag){
+  titulo <- "# Proporción de resultados por tamaños de malla"
+  subtitulo1 <- "## Táboa por tamaños de malla:"
+  subtitulo2 <- "## Pie graph por tamaños de malla:"
+}
+
+```
+
+\newpage
+
+`r titulo`
+
+`r subtitulo1`
+
+```{r results='asis', echo=FALSE, message = FALSE, warning = FALSE}
+
+# Taboa por tamaño malla
+if(flag){
+  resultados = resultados[0, ]
+  for (i in 1:length(N)){
+    dat=datos[datos$N==N[i],]
+    resultados[nrow(resultados)+1,]=res2(N[i],dat)
+  }
+  ord=order(resultados$found_ref,decreasing = TRUE)
+  print(knitr::kable(resultados,row.names = FALSE,caption = "Tamaños malla",digits=3))
+}
+
+```
+
+`r subtitulo2`
+
+```{r fig.width=2, fig.height=2, fig.show="hold", out.width="33%"}
+par(mar = c(20, 20, 20, 20))
+  
+# Queixos por tamaños de malla
+if(flag){
+  for (i in 1:length(N)){
+    dat=datos[datos$N==N[i],]
+    porcentajes <- unlist(res(N[i],dat))
+    porcentajes <- porcentajes[3:5]
+    porcentajes <- c(porcentajes,1-sum(as.numeric(porcentajes)))
+    grafico <- pie_graph(tipo_resultado, porcentajes, N[i], colors)
+    plot(grafico)
+  }
+}
+
+titulo <- ""
+subtitulo1 <- ""
+subtitulo2 <- ""
+
+flag <- taboas_combinadas[["problemas_solvers"]]
+  
+if(flag){
+  titulo <- "# Proporción de resultados por problemas e solvers"
+  subtitulo1 <- "## Táboa por problemas e solvers:"
+  subtitulo2 <- "## Pie graph por problemas e solvers:"
+}
+
+```
+
+\newpage
+
+`r titulo`
+
+`r subtitulo1`
+
+```{r results='asis', echo=FALSE, message = FALSE, warning = FALSE}
+
+### TÁBOAS COMBINADAS ###
+
+# Taboa por problemas e solvers
+if(flag){
+  factor1=problemas
+  f1="problema"
+  factor2=solvers
+  f2="SOLVER"
+  titulo="Problemas-Solvers"
+  resultados = data.frame(tipo=character(),solved_S=numeric(), found_ref=numeric(), 
+                            near_ref=numeric(),Alt=numeric(),BTime_F=numeric())
+  for (i in 1:length(factor1)){
+    for (j in 1:length(factor2)){
+      dat=datos[(datos[,f1]==factor1[i] & datos[,f2]==factor2[j]),]
+      resultados[nrow(resultados)+1,]=res(paste(factor1[i],factor2[j],sep="-"),dat)
+    }
+  }
+  ord=order(resultados$found_ref,decreasing = TRUE)
+  print(knitr::kable(resultados[ord,],row.names = FALSE,caption = titulo,digits=3))
+}
+
+```
+
+`r subtitulo2`
+
+```{r fig.width=2, fig.height=2, fig.show="hold", out.width="33%"}
+par(mar = c(20, 20, 20, 20))
+  
+# Queixos por problemas e solvers combinados
+if(flag){
+  for (i in 1:length(factor1)){
+    for (j in 1:length(factor2)){
+      dat=datos[(datos[,f1]==factor1[i] & datos[,f2]==factor2[j]),]
+      porcentajes <- unlist(res(paste(factor1[i],factor2[j],sep="-"),dat))
+      porcentajes <- porcentajes[3:5]
+      porcentajes <- c(porcentajes,1-sum(as.numeric(porcentajes)))
+      titulo = paste(factor1[i],factor2[j],sep="-")
+      grafico <- pie_graph(tipo_resultado, porcentajes, titulo, colors)
+      plot(grafico)
+    }
+  }
+}
+
+titulo <- ""
+subtitulo1 <- ""
+subtitulo2 <- ""
+
+flag <- taboas_combinadas[["problemas_metodos"]]
+  
+if(flag){
+  titulo <- "# Proporción de resultados por problemas e métodos"
+  subtitulo1 <- "## Táboa por problemas e métodos:"
+  subtitulo2 <- "## Pie graph por problemas e métodos:"
+}
+
+```
+
+\newpage
+
+`r titulo`
+
+`r subtitulo1`
+
+```{r results='asis', echo=FALSE, message = FALSE, warning = FALSE}
+# Taboa por problemas e metodos
+if(flag){
+  resultados = resultados[0, ]
+  factor1=problemas
+  f1="problema"
+  factor2=metodos
+  f2="metodo"
+  titulo="Problemas-Métodos"
+  resultados = data.frame(tipo=character(),solved_S=numeric(), found_ref=numeric(), 
+                            near_ref=numeric(),Alt=numeric(),BTime_F=numeric())
+  for (i in 1:length(factor1)){
+    for (j in 1:length(factor2)){
+      dat=datos[(datos[,f1]==factor1[i] & datos[,f2]==factor2[j]),]
+      resultados[nrow(resultados)+1,]=res(paste(factor1[i],factor2[j],sep="-"),dat)
+    }
+  }
+  ord=order(resultados$found_ref,decreasing = TRUE)
+  print(knitr::kable(resultados[ord,],row.names = FALSE,caption = titulo,digits=3))
+}
+
+```
+
+`r subtitulo2`
+
+```{r fig.width=2, fig.height=2, fig.show="hold", out.width="33%"}
+par(mar = c(20, 20, 20, 20))
+  
+# Queixos por problemas e metodos combinados
+if(flag){
+  for (i in 1:length(factor1)){
+    for (j in 1:length(factor2)){
+      dat=datos[(datos[,f1]==factor1[i] & datos[,f2]==factor2[j]),]
+      porcentajes <- unlist(res(paste(factor1[i],factor2[j],sep="-"),dat))
+      porcentajes <- porcentajes[3:5]
+      porcentajes <- c(porcentajes,1-sum(as.numeric(porcentajes)))
+      titulo = paste(factor1[i],factor2[j],sep="-")
+      grafico <- pie_graph(tipo_resultado, porcentajes, titulo, colors)
+      plot(grafico)
+    }
+  }
+}
+
+titulo <- ""
+subtitulo1 <- ""
+subtitulo2 <- ""
+
+flag <- taboas_combinadas[["problemas_modos"]]
+  
+if(flag){
+  titulo <- "# Proporción de resultados por problemas e modos"
+  subtitulo1 <- "## Táboa por problemas e modos:"
+  subtitulo2 <- "## Pie graph por problemas e modos:"
+}
+
+```
+
+\newpage
+
+`r titulo`
+
+`r subtitulo1`
+
+```{r results='asis', echo=FALSE, message = FALSE, warning = FALSE}
+# Taboa por problemas e modos
+if(flag){
+  resultados = resultados[0, ]
+  factor1=problemas
+  f1="problema"
+  factor2=modes
+  f2="mode"
+  titulo="Problemas-Mode"
+  resultados = data.frame(tipo=character(),solved_S=numeric(), found_ref=numeric(), 
+                            near_ref=numeric(),Alt=numeric(),BTime_F=numeric())
+  for (i in 1:length(factor1)){
+    for (j in 1:length(factor2)){
+      dat=datos[(datos[,f1]==factor1[i] & datos[,f2]==factor2[j]),]
+      resultados[nrow(resultados)+1,]=res(paste(factor1[i],factor2[j],sep="-"),dat)
+    }
+  }
+  ord=order(resultados$found_ref,decreasing = TRUE)
+  print(knitr::kable(resultados[ord,],row.names = FALSE,caption = titulo,digits=3))
+}
+
+```
+
+`r subtitulo2`
+
+```{r fig.width=2, fig.height=2, fig.show="hold", out.width="33%"}
+par(mar = c(20, 20, 20, 20))
+  
+# Queixos por problemas e modos combinados
+if(flag){
+  for (i in 1:length(factor1)){
+    for (j in 1:length(factor2)){
+      dat=datos[(datos[,f1]==factor1[i] & datos[,f2]==factor2[j]),]
+      porcentajes <- unlist(res(paste(factor1[i],factor2[j],sep="-"),dat))
+      porcentajes <- porcentajes[3:5]
+      porcentajes <- c(porcentajes,1-sum(as.numeric(porcentajes)))
+      titulo = paste(factor1[i],factor2[j],sep="-")
+      grafico <- pie_graph(tipo_resultado, porcentajes, titulo, colors)
+      plot(grafico)
+    }
+  }
+}
+
+titulo <- ""
+subtitulo1 <- ""
+subtitulo2 <- ""
+
+flag <- taboas_combinadas[["solvers_metodos"]]
+  
+if(flag){
+  titulo <- "# Proporción de resultados por solvers e métodos"
+  subtitulo1 <- "## Táboa por solvers e métodos:"
+  subtitulo2 <- "## Pie graph por solvers e métodos:"
+}
+
+```
+
+\newpage
+
+`r titulo`
+
+`r subtitulo1`
+
+```{r results='asis', echo=FALSE, message = FALSE, warning = FALSE}
+
+# Taboa por solvers e metodos
+if(flag){
+  resultados = resultados[0, ]
+  factor1=solvers
+  f1="SOLVER"
+  factor2=metodos
+  f2="metodo"
+  titulo="Solver-Metodo"
+  resultados = data.frame(tipo=character(),solved_S=numeric(), found_ref=numeric(), 
+                            near_ref=numeric(),Alt=numeric(),BTime_F=numeric())
+  for (i in 1:length(factor1)){
+    for (j in 1:length(factor2)){
+      dat=datos[(datos[,f1]==factor1[i] & datos[,f2]==factor2[j]),]
+      resultados[nrow(resultados)+1,]=res(paste(factor1[i],factor2[j],sep="-"),dat)
+    }
+  }
+  ord=order(resultados$found_ref,decreasing = TRUE)
+  print(knitr::kable(resultados[ord,],row.names = FALSE,caption = titulo,digits=3))
+}
+
+```
+
+`r subtitulo2`
+
+```{r fig.width=2, fig.height=2, fig.show="hold", out.width="33%"}
+par(mar = c(20, 20, 20, 20))
+  
+# Queixos por solvers e metodos combinados
+if(flag){
+  for (i in 1:length(factor1)){
+    for (j in 1:length(factor2)){
+      dat=datos[(datos[,f1]==factor1[i] & datos[,f2]==factor2[j]),]
+      porcentajes <- unlist(res(paste(factor1[i],factor2[j],sep="-"),dat))
+      porcentajes <- porcentajes[3:5]
+      porcentajes <- c(porcentajes,1-sum(as.numeric(porcentajes)))
+      titulo = paste(factor1[i],factor2[j],sep="-")
+      grafico <- pie_graph(tipo_resultado, porcentajes, titulo, colors)
+      plot(grafico)
+    }
+  }
+}
+
+titulo <- ""
+subtitulo1 <- ""
+subtitulo2 <- ""
+
+flag <- taboas_combinadas[["solvers_modos"]]
+  
+if(flag){
+  titulo <- "# Proporción de resultados por solvers e modos"
+  subtitulo1 <- "## Táboa por solvers e modos:"
+  subtitulo2 <- "## Pie graph por solvers e modos:"
+}
+
+```
+
+\newpage
+
+`r titulo`
+
+`r subtitulo1`
+
+```{r results='asis', echo=FALSE, message = FALSE, warning = FALSE}
+
+
+# Taboa por solvers e modos
+if(flag){
+  resultados = resultados[0, ]
+  factor1=solvers
+  f1="SOLVER"
+  factor2=modes
+  f2="mode"
+  titulo="Solver-Mode"
+  resultados = data.frame(tipo=character(),solved_S=numeric(), found_ref=numeric(), 
+                            near_ref=numeric(),Alt=numeric(),BTime_F=numeric())
+  for (i in 1:length(factor1)){
+    for (j in 1:length(factor2)){
+      dat=datos[(datos[,f1]==factor1[i] & datos[,f2]==factor2[j]),]
+      resultados[nrow(resultados)+1,]=res(paste(factor1[i],factor2[j],sep="-"),dat)
+    }
+  }
+  ord=order(resultados$found_ref,decreasing = TRUE)
+  print(knitr::kable(resultados[ord,],row.names = FALSE,caption = titulo,digits=3))
+}
+
+```
+
+`r subtitulo2`
+
+```{r fig.width=2, fig.height=2, fig.show="hold", out.width="33%"}
+par(mar = c(20, 20, 20, 20))
+  
+# Queixos por solvers e modos combinados
+if(flag){
+  for (i in 1:length(factor1)){
+    for (j in 1:length(factor2)){
+      dat=datos[(datos[,f1]==factor1[i] & datos[,f2]==factor2[j]),]
+      porcentajes <- unlist(res(paste(factor1[i],factor2[j],sep="-"),dat))
+      porcentajes <- porcentajes[3:5]
+      porcentajes <- c(porcentajes,1-sum(as.numeric(porcentajes)))
+      titulo = paste(factor1[i],factor2[j],sep="-")
+      grafico <- pie_graph(tipo_resultado, porcentajes, titulo, colors)
+      plot(grafico)
+    }
+  }
+}
+
+titulo <- ""
+subtitulo1 <- ""
+subtitulo2 <- ""
+
+flag <- taboas_combinadas[["metodos_modos"]]
+  
+if(flag){
+  titulo <- "# Proporción de resultados por métodos e modos"
+  subtitulo1 <- "## Táboa por métodos e modos:"
+  subtitulo2 <- "## Pie graph por métodos e modos:"
+}
+
+```
+
+\newpage
+
+`r titulo`
+
+`r subtitulo1`
+
+```{r results='asis', echo=FALSE, message = FALSE, warning = FALSE}
+
+# Taboa por metodos e modos
+if(flag){
+  resultados = resultados[0, ]
+  factor1=metodos
+  f1="metodo"
+  factor2=modes
+  f2="mode"
+  titulo="Métodos-Mode"
+  resultados = data.frame(tipo=character(),solved_S=numeric(), found_ref=numeric(), 
+                            near_ref=numeric(),Alt=numeric(),BTime_F=numeric())
+  for (i in 1:length(factor1)){
+    for (j in 1:length(factor2)){
+      dat=datos[(datos[,f1]==factor1[i] & datos[,f2]==factor2[j]),]
+      resultados[nrow(resultados)+1,]=res(paste(factor1[i],factor2[j],sep="-"),dat)
+    }
+  }
+  ord=order(resultados$found_ref,decreasing = TRUE)
+  print(knitr::kable(resultados[ord,],row.names = FALSE,caption = titulo,digits=3))
+}
+
+```
+
+`r subtitulo2`
+
+```{r fig.width=2, fig.height=2, fig.show="hold", out.width="33%"}
+par(mar = c(20, 20, 20, 20))
+  
+# Queixos por métodos e modos combinados
+if(flag){
+  for (i in 1:length(factor1)){
+    for (j in 1:length(factor2)){
+      dat=datos[(datos[,f1]==factor1[i] & datos[,f2]==factor2[j]),]
+      porcentajes <- unlist(res(paste(factor1[i],factor2[j],sep="-"),dat))
+      porcentajes <- porcentajes[3:5]
+      porcentajes <- c(porcentajes,1-sum(as.numeric(porcentajes)))
+      titulo = paste(factor1[i],factor2[j],sep="-")
+      grafico <- pie_graph(tipo_resultado, porcentajes, titulo, colors)
+      plot(grafico)
+    }
+  }
+}
+
+titulo <- ""
+subtitulo1 <- ""
+subtitulo2 <- ""
+
+flag1 <- taboas_mellores_tempos[["solvers"]]
+flag2 <- taboas_mellores_tempos[["globais"]]
+  
+if(flag1 | flag2){
+  titulo <- "# Táboas de mellores tempos"
+}
+
+```
+
+\newpage
+
+`r titulo`
+
+```{r results='asis', echo=FALSE, message = FALSE, warning = FALSE}
+
+# Separamos os solvers en globais e locais
+globais=c("baron","t_couenne","octeract")
+locais<-setdiff(solvers,globais)
+
+
+### TABOAS MELLORES TEMPOS ###
+for (i in 1:length(problemas)){
+  dat=datos[datos$problema==problemas[i] & datos$resolto=="si",c(1,2,3,10,13,16)]
+  
+  # Taboa mellores tempos con todos os solvers
+  if(flag1){
+    titulo1=paste("Mellores tempos",problemas[i])
+    ord=order(dat$time,decreasing = FALSE)[1:10]
+    print(knitr::kable(dat[ord,],row.names = FALSE,caption=titulo1,digits=3))
+  }
+  
+  # Taboa mellores tempos con solvers globais
+  if(flag2){
+    dat2=dat[dat$SOLVER %in% globais,]
+    titulo2=paste("Mellores tempos",problemas[i],"(Solvers globais)")
+    ord=order(dat2$time,decreasing = FALSE)[1:10]
+    print(knitr::kable(dat2[ord,],row.names = FALSE,caption=titulo2,digits=3))
+  }
+}
+
+titulo <- ""
+subtitulo1 <- ""
+subtitulo2 <- ""
+flag1 <- boxplots[["solvers"]]
+flag2 <- boxplots[["metodos"]]
+
+if(flag1 | flag2){
+  titulo <- "# Boxplots por tempo"
+}
+
+if(flag1){
+  subtitulo1 <- "## Boxplot tempo-solver:"
+}
+
+if(flag2){
+  subtitulo2 <- "## Boxplot tempo-método:"
+}
+
+```
+
+\newpage
+
+`r titulo`
+
+`r subtitulo1`
+
+```{r results='asis', echo=FALSE, message = FALSE, warning = FALSE}
+
+### BOX PLOTS ###
+
+# Collemos as execucions resoltas
+dat=datos[datos$resolto=="si",]
+
+# Box plot tempo e solver
+if(boxplots[["solvers"]]){
+  boxplot(dat$time~dat$SOLVER,outline=FALSE,xlab="SOLVERS",ylab="Tempo",main="Problemas resoltos con precisión")
+}
+
+```
+
+`r subtitulo2`
+
+```{r results='asis', echo=FALSE, message = FALSE, warning = FALSE}
+# Box plot tempo e metodo
+if(boxplots[["metodos"]]){
+  boxplot(dat$time~dat$metodo,outline=FALSE,xlab="Métodos",ylab="Tempo",main="Problemas resoltos con precisión")
+}
+```
+
+\newpage
+
+```{r results='asis', echo=FALSE, message = FALSE, warning = FALSE}
+### GRÁFICAS ###
+
+generar_Graficas(datos, globais, locais, problemas)
+
+```

@@ -1,0 +1,41 @@
+#TABOAS
+SI problemas
+SI solvers
+SI metodos
+SI modos
+SI tolerancias
+SI penalizacions
+SI mallas
+
+#TABOAS_COMBINADAS
+SI problemas_solvers
+SI problemas_metodos
+SI problemas_modos
+SI solvers_metodos
+SI solvers_modos
+SI metodos_modos
+
+
+#TABOAS_MELLORES_TEMPOS
+SI solvers
+SI globais
+
+#BOX_PLOTS
+SI solvers
+SI metodos
+
+#GRAFICAS_PROBLEMAS
+SI alpha_pinene
+SI BBG
+SI crausteF
+SI crausteP
+SI daisy_mamil3F
+SI daisy_mamil3P
+SI FHN
+SI harmonic
+SI hivF
+SI hivP
+SI lotkaVolterraF
+SI lotkaVolterraP
+
+
